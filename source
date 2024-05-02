@@ -1,0 +1,92 @@
+-- Define the dynamic API keys for each action
+local buyAPIKey = "MiningAPI/PurchaseFossilPack"
+local placeAPIKey = "MiningAPI/UpdateNPCFlag"
+local payAPIKey = "MiningAPI/StartMachineAction"
+local collectAPIKey = "MiningAPI/ClaimMachineAction" -- Updated collection remote
+
+-- Function to map a number to the corresponding fossil name
+local function getFossilName(number)
+    local fossilNames = {
+        "fossil_2024_brachiosaurus_fossil",
+        "fossil_2024_velociraptor_fossil",
+        "fossil_2024_elasmosaurus_fossil",
+        "fossil_2024_ankylosaurus_fossil"
+    }
+    return fossilNames[number]
+end
+
+local function collectItem(itemName)
+    local args = {
+        [1] = itemName
+    }
+    game:GetService("ReplicatedStorage").API:FindFirstChild(collectAPIKey):InvokeServer(unpack(args)) -- Updated to use the correct collection remote
+end
+
+local function buyItem(fossilName, quantity)
+    local args = {
+        [1] = fossilName
+    }
+    for i = 1, quantity do
+        game:GetService("ReplicatedStorage").API:FindFirstChild(buyAPIKey):FireServer(unpack(args))
+        wait(3) -- 3-second delay between each buy
+    end
+end
+
+local function placeItem(machineName, quantity)
+    local args = {
+        [1] = machineName,
+        [2] = quantity
+    }
+    game:GetService("ReplicatedStorage").API:FindFirstChild(placeAPIKey):FireServer(unpack(args))
+end
+
+local function payForItem(petName, fossilName)
+    local args = {
+        [1] = petName,
+        [2] = fossilName
+    }
+    game:GetService("ReplicatedStorage").API:FindFirstChild(payAPIKey):InvokeServer(unpack(args))
+end
+
+-- Function to execute the entire process
+local function executeProcess(selectedFossilNumber)
+    -- Collect an item
+    collectItem("Pet")
+    wait(5) -- 5-second delay
+
+    -- Select the fossil based on the provided number
+    local selectedFossilName = getFossilName(selectedFossilNumber)
+
+    -- Buy 4x of the selected fossil
+    buyItem(selectedFossilName, 4)
+    wait(3) -- 3-second delay
+
+    -- Place the item
+    placeItem("first_time_fossil_machine", 1)
+    wait(3) -- 3-second delay
+
+    -- Pay for the item
+    payForItem("Pet", selectedFossilName)
+end
+
+-- Function to repeat the process
+local function repeatProcess(repetitions)
+    for i = 1, repetitions do
+        executeProcess(3) -- Change the number to select a different fossil
+        wait(21 * 60) -- 21 minutes delay
+    end
+end
+
+-- Main function to start the process
+local function startProcess(repetitions)
+    if repetitions == 0 then
+        while true do
+            repeatProcess(1) -- Repeat indefinitely
+        end
+    else
+        repeatProcess(repetitions) -- Repeat specified number of times
+    end
+end
+
+-- Start the process with 10 repetitions
+startProcess(0)
