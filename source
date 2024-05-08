@@ -30,5 +30,5 @@ end
 -- Example usage for each dinosaur to include remove the -- at start of line number - repetitions - True = Buy fossils / fasle = dont buy
 --repeatProcess("fossil_2024_brachiosaurus_fossil", 16, false)  -- With buy 16 
 --repeatProcess("fossil_2024_velociraptor_fossil", 0, true)   -- Without buy infinate
-repeatProcess("fossil_2024_elasmosaurus_fossil", 0, true)   -- With buy 16
+repeatProcess("fossil_2024_elasmosaurus_fossil", 99, true)   -- With buy 16
 --repeatProcess("fossil_2024_ankylosaurus_fossil", 16, true)    -- Without buy 16
