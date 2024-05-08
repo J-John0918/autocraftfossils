@@ -1,34 +1,60 @@
-local function executeProcess(fossilName, skipBuy)
-    -- Collect
-    game:GetService("ReplicatedStorage").API:FindFirstChild("MiningAPI/ClaimMachineAction"):InvokeServer("Pet")
-    wait(3)
-
-    -- Buy 4x if skipBuy is false
-    if not skipBuy then
-        for i = 1, 4 do
-            game:GetService("ReplicatedStorage").API:FindFirstChild("MiningAPI/PurchaseFossilPack"):FireServer(fossilName)
-            wait(3)
-        end
-    end
-
-    -- Place
-    game:GetService("ReplicatedStorage").API:FindFirstChild("MiningAPI/UpdateNPCFlag"):FireServer("first_time_fossil_machine", 1)
-    wait(3)
-
-    -- Pay
-    game:GetService("ReplicatedStorage").API:FindFirstChild("MiningAPI/StartMachineAction"):InvokeServer("Pet", fossilName)
-    wait(3)
+-- Collect
+local function collectPet()
+    local args = {
+        [1] = "Pet"
+    }
+    game:GetService("ReplicatedStorage").API:FindFirstChild("MiningAPI/ClaimMachineAction"):InvokeServer(unpack(args))
 end
 
-local function repeatProcess(fossilName, repetitions, skipBuy)
-    for _ = 1, repetitions do
-        executeProcess(fossilName, skipBuy)
-        wait(21 * 60) -- 21 minutes delay
+-- Buy fossil x4
+local function buyFossil(fossilName)
+    local args = {
+        [1] = fossilName
+    }
+    for i = 1, 4 do
+        game:GetService("ReplicatedStorage").API:FindFirstChild("MiningAPI/PurchaseFossilPack"):FireServer(unpack(args))
+        wait(3) -- Wait for 3 seconds between each purchase
     end
 end
 
--- Example usage for each dinosaur to include remove the -- at start of line number - repetitions - True = Buy fossils / fasle = dont buy
---repeatProcess("fossil_2024_brachiosaurus_fossil", 16, false)  -- With buy 16 
---repeatProcess("fossil_2024_velociraptor_fossil", 0, true)   -- Without buy infinate
-repeatProcess("fossil_2024_elasmosaurus_fossil", 99, true)   -- With buy 16
---repeatProcess("fossil_2024_ankylosaurus_fossil", 16, true)    -- Without buy 16
+-- Place fossil
+local function placeFossil(machineName, quantity)
+    local args = {
+        [1] = machineName,
+        [2] = quantity
+    }
+    game:GetService("ReplicatedStorage").API:FindFirstChild("MiningAPI/UpdateNPCFlag"):FireServer(unpack(args))
+end
+
+-- Pay for fossil
+local function payForFossil(petName, fossilName)
+    local args = {
+        [1] = petName,
+        [2] = fossilName
+    }
+    game:GetService("ReplicatedStorage").API:FindFirstChild("MiningAPI/StartMachineAction"):InvokeServer(unpack(args))
+end
+
+-- Execute the sequence of actions
+local function executeSequence(fossilName, machineName, petName)
+    collectPet()
+    wait(5) -- Wait for 5 seconds after collecting pet
+    buyFossil(fossilName)
+    placeFossil(machineName, 1)
+    wait(3) -- Wait for 3 seconds after placing fossil
+    payForFossil(petName, fossilName)
+end
+
+-- Function to repeat the sequence every 21 minutes
+local function repeatSequence(fossilName, machineName, petName)
+    while true do
+        executeSequence(fossilName, machineName, petName)
+        wait(21 * 60) -- Wait for 21 minutes
+    end
+end
+
+-- Example usage
+local fossilName = "fossil_2024_elasmosaurus_fossil"
+local machineName = "first_time_fossil_machine"
+local petName = "Pet"
+repeatSequence(fossilName, machineName, petName)
