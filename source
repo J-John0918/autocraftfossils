@@ -1,92 +1,34 @@
--- Define the dynamic API keys for each action
-local buyAPIKey = "MiningAPI/PurchaseFossilPack"
-local placeAPIKey = "MiningAPI/UpdateNPCFlag"
-local payAPIKey = "MiningAPI/StartMachineAction"
-local collectAPIKey = "MiningAPI/ClaimMachineAction" -- Updated collection remote
+local function executeProcess(fossilName, skipBuy)
+    -- Collect
+    game:GetService("ReplicatedStorage").API:FindFirstChild("MiningAPI/ClaimMachineAction"):InvokeServer("Pet")
+    wait(3)
 
--- Function to map a number to the corresponding fossil name
-local function getFossilName(number)
-    local fossilNames = {
-        "fossil_2024_brachiosaurus_fossil",
-        "fossil_2024_velociraptor_fossil",
-        "fossil_2024_elasmosaurus_fossil",
-        "fossil_2024_ankylosaurus_fossil"
-    }
-    return fossilNames[number]
-end
-
-local function collectItem(itemName)
-    local args = {
-        [1] = itemName
-    }
-    game:GetService("ReplicatedStorage").API:FindFirstChild(collectAPIKey):InvokeServer(unpack(args)) -- Updated to use the correct collection remote
-end
-
-local function buyItem(fossilName, quantity)
-    local args = {
-        [1] = fossilName
-    }
-    for i = 1, quantity do
-        game:GetService("ReplicatedStorage").API:FindFirstChild(buyAPIKey):FireServer(unpack(args))
-        wait(3) -- 3-second delay between each buy
+    -- Buy 4x if skipBuy is false
+    if not skipBuy then
+        for i = 1, 4 do
+            game:GetService("ReplicatedStorage").API:FindFirstChild("MiningAPI/PurchaseFossilPack"):FireServer(fossilName)
+            wait(3)
+        end
     end
+
+    -- Place
+    game:GetService("ReplicatedStorage").API:FindFirstChild("MiningAPI/UpdateNPCFlag"):FireServer("first_time_fossil_machine", 1)
+    wait(3)
+
+    -- Pay
+    game:GetService("ReplicatedStorage").API:FindFirstChild("MiningAPI/StartMachineAction"):InvokeServer("Pet", fossilName)
+    wait(3)
 end
 
-local function placeItem(machineName, quantity)
-    local args = {
-        [1] = machineName,
-        [2] = quantity
-    }
-    game:GetService("ReplicatedStorage").API:FindFirstChild(placeAPIKey):FireServer(unpack(args))
-end
-
-local function payForItem(petName, fossilName)
-    local args = {
-        [1] = petName,
-        [2] = fossilName
-    }
-    game:GetService("ReplicatedStorage").API:FindFirstChild(payAPIKey):InvokeServer(unpack(args))
-end
-
--- Function to execute the entire process
-local function executeProcess(selectedFossilNumber)
-    -- Collect an item
-    collectItem("Pet")
-    wait(5) -- 5-second delay
-
-    -- Select the fossil based on the provided number
-    local selectedFossilName = getFossilName(selectedFossilNumber)
-
-    -- Buy 4x of the selected fossil
-    buyItem(selectedFossilName, 4)
-    wait(3) -- 3-second delay
-
-    -- Place the item
-    placeItem("first_time_fossil_machine", 1)
-    wait(3) -- 3-second delay
-
-    -- Pay for the item
-    payForItem("Pet", selectedFossilName)
-end
-
--- Function to repeat the process
-local function repeatProcess(repetitions)
-    for i = 1, repetitions do
-        executeProcess(3) -- Change the number to select a different fossil
+local function repeatProcess(fossilName, repetitions, skipBuy)
+    for _ = 1, repetitions do
+        executeProcess(fossilName, skipBuy)
         wait(21 * 60) -- 21 minutes delay
     end
 end
 
--- Main function to start the process
-local function startProcess(repetitions)
-    if repetitions == 0 then
-        while true do
-            repeatProcess(1) -- Repeat indefinitely
-        end
-    else
-        repeatProcess(repetitions) -- Repeat specified number of times
-    end
-end
-
--- Start the process with 10 repetitions
-startProcess(0)
+-- Example usage for each dinosaur to include remove the -- at start of line number - repetitions - True = Buy fossils / fasle = dont buy
+--repeatProcess("fossil_2024_brachiosaurus_fossil", 16, false)  -- With buy 16 
+--repeatProcess("fossil_2024_velociraptor_fossil", 0, true)   -- Without buy infinate
+repeatProcess("fossil_2024_elasmosaurus_fossil", 0, true)   -- With buy 16
+--repeatProcess("fossil_2024_ankylosaurus_fossil", 16, true)    -- Without buy 16
