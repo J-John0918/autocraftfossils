@@ -31,10 +31,11 @@ local priorityMonsters = {
     "CanneIIoni Dragoni",
     "Cannelloni Dragoni",
     "Chicleteira",
-    "Rang Ring Ring Bus Ireng"
+    "Rang Ring Ring Bus Ireng",
+    "GRAIPUS MEDUS",
+    "Hipopotamino Supermarketino"
 }
 
--- Helper functions (unchanged)
 local function findPriorityMonsters()
     local foundMonsters = {}
     local monsterNameSet = {}
@@ -76,11 +77,6 @@ local function attackAtPosition(position)
     RequestAttack:InvokeServer(unpack(args))
 end
 
----
-
-### **Main Script Loop**
-
-```lua
 while true do
     local foundPriorityMonsters = findPriorityMonsters()
     local isPriorityMode = #foundPriorityMonsters > 0
@@ -138,7 +134,6 @@ while true do
             
             attackAtPosition(target.cframe.Position)
             
-            -- Small wait here to prevent freezing
             wait(1)
         end
         print("Completed all targets, restarting cycle to check for respawns...")
