@@ -36,50 +36,7 @@ local priorityMonsters = {
     "Rang Ring Ring Bus Ireng"
 }
 
--- The findHumanoidNearPosition function from your provided script.
-local function findHumanoidNearPosition(position, radius)
-    local region = Region3.new(position - Vector3.new(radius, radius, radius), position + Vector3.new(radius, radius, radius))
-    local partsInRegion = workspace:FindPartsInRegion3WithIgnoreList(region, {Character}, 100)
-    for _, part in pairs(partsInRegion) do
-        local model = part:FindFirstAncestorOfClass("Model")
-        if model then
-            local humanoid = model:FindFirstChildOfClass("Humanoid")
-            if humanoid and humanoid.Health > 0 then
-                local hrp = model:FindFirstChild("HumanoidRootPart")
-                if hrp and (hrp.Position - position).Magnitude <= radius then
-                    return humanoid, model
-                end
-            end
-        end
-    end
-    return nil, nil
-end
-
--- A robust teleport function to prevent getting stuck in the void
-local function teleportTo(cframe)
-    local position = cframe.Position
-    local rayOrigin = position + Vector3.new(0, 10, 0)
-    local rayDirection = Vector3.new(0, -100, 0)
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterDescendantsInstances = {Character}
-    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-
-    local raycastResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
-
-    if raycastResult then
-        HumanoidRootPart.CFrame = CFrame.new(raycastResult.Position + Vector3.new(0, 5, 0))
-    else
-        HumanoidRootPart.CFrame = CFrame.new(position + Vector3.new(0, 10, 0))
-    end
-end
-
--- The attack function from your provided script.
-local function attackAtPosition(position)
-    local args = {CFrame.new(position)}
-    RequestAttack:InvokeServer(unpack(args))
-end
-
--- Function to find monsters with the priority names
+-- Helper functions
 local function findPriorityMonsters()
     local foundMonsters = {}
     local monsterNameSet = {}
@@ -99,11 +56,34 @@ local function findPriorityMonsters()
     return foundMonsters
 end
 
----------------------------------------------------------------------------------------------------
--- Main script loop
----------------------------------------------------------------------------------------------------
+local function teleportTo(cframe)
+    local position = cframe.Position
+    local rayOrigin = position + Vector3.new(0, 10, 0)
+    local rayDirection = Vector3.new(0, -100, 0)
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = {Character}
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+
+    local raycastResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+
+    if raycastResult then
+        HumanoidRootPart.CFrame = CFrame.new(raycastResult.Position + Vector3.new(0, 5, 0))
+    else
+        HumanoidRootPart.CFrame = CFrame.new(position + Vector3.new(0, 10, 0))
+    end
+end
+
+local function attackAtPosition(position)
+    local args = {CFrame.new(position)}
+    RequestAttack:InvokeServer(unpack(args))
+end
+
+---
+
+### **Main Script Loop**
+
+```lua
 while true do
-    -- Check for priority monsters at the beginning of each cycle.
     local foundPriorityMonsters = findPriorityMonsters()
     local isPriorityMode = #foundPriorityMonsters > 0
     local startTime = tick()
@@ -111,6 +91,7 @@ while true do
     if isPriorityMode then
         print("Priority Mode: Special monsters found. Actively hunting for 5 minutes.")
 
+        -- Priority Mode: Actively hunts special monsters in a loop for 5 minutes.
         while tick() - startTime < 300 do
             for _, area in ipairs(targets) do
                 teleportTo(area.cframe)
@@ -132,6 +113,8 @@ while true do
                             print("Attacking " .. monster.Name)
                             teleportTo(hrp.Position)
                             wait(0.5)
+                            
+                            -- Attacks monster until it is defeated.
                             while humanoid and humanoid.Health > 0 and hrp.Parent do
                                 attackAtPosition(hrp.Position)
                                 wait(1)
@@ -146,32 +129,21 @@ while true do
         end
         print("Priority Mode ended. Checking for new priority monsters.")
     else
-        -- Normal Mode: Runs exactly as you provided it.
-        print("Normal Mode: No special monsters found. Farming at each location.")
+        -- Normal Mode: Teleports to each CFrame and attacks it, then moves on.
+        print("Normal Mode: No special monsters found. Farming at each location in sequence.")
         for _, target in ipairs(targets) do
             print("Teleporting to " .. target.name)
             teleportTo(target.cframe)
             wait(1)
 
-            while true do
-                -- Check for priority monsters to break the loop and switch modes
-                if #findPriorityMonsters() > 0 then
-                    print("Priority monster detected! Switching to Priority Mode.")
-                    goto end_of_loop
-                end
-                
-                attackAtPosition(target.cframe.Position)
-                wait(1)
-
-                local humanoid, model = findHumanoidNearPosition(target.cframe.Position, 10)
-                if not humanoid or humanoid.Health <= 0 then
-                    print(target.name .. " humanoid defeated or not found. Moving on.")
-                    break
-                else
-                    print(target.name .. " humanoid still alive, continuing attack.")
-                end
+            -- Check for priority monsters to break the loop and switch modes.
+            if #findPriorityMonsters() > 0 then
+                print("Priority monster detected! Switching to Priority Mode.")
+                break
             end
-            ::end_of_loop::
+            
+            attackAtPosition(target.cframe.Position)
+            wait(1)
         end
         print("Completed all targets, restarting cycle to check for respawns...")
         wait(5)
