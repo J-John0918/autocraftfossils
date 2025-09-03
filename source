@@ -1,1 +1,210 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Knit = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Knit")
+local MonsterService = Knit:WaitForChild("Services"):WaitForChild("MonsterService")
+local RequestAttack = MonsterService:WaitForChild("RF"):WaitForChild("RequestAttack")
 
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+local workspace = game:GetService("Workspace")
+
+-- List of all monsters to be farmed
+local targetMonsters = {
+    "YONI",
+    "YONII",
+    "Coccodrillo Cheese",
+    "Coccodrillo Formaggioso",
+    "Chachechchachachachi",
+    "Chachechichachachachi",
+    "CanneIIoni Dragoni",
+    "Cannelloni Dragoni",
+    "Chicleteira",
+    "Rang Ring Ring Bus Ireng"
+}
+
+-- Define the farm areas with their safe CFrames and search radius
+local farmAreas = {
+    {
+        name = "Patapim Park",
+        cframe = CFrame.new(-471.710022, 192.993744, 543.611938, 0, 0, 1, 0, 1, -0, -1, 0, 0),
+        radius = 100
+    },
+    {
+        name = "Brainrot City",
+        cframe = CFrame.new(628.015747, 161.438797, 1795.02795, -0.342042685, 0, 0.939684391, 0, 1, 0, -0.939684391, 0, -0.342042685),
+        radius = 100
+    },
+    {
+        name = "Larila Desert",
+        cframe = CFrame.new(586.404663, 104.778831, -195.299835, 0.987738311, 0.155337527, 0.0155987907, -0.148643419, 0.966284394, -0.210237041, -0.0477305725, 0.20534052, 0.977526009),
+        radius = 100
+    },
+    {
+        name = "Tralalero Ocean",
+        cframe = CFrame.new(-228.879822, 108.147873, -1982.64124, 0.996191859, 0, 0.0871884301, 0, 1, 0, -0.0871884301, 0, 0.996191859),
+        radius = 100
+    },
+    {
+        name = "Mount Ambalabu",
+        cframe = CFrame.new(-1538.9342, 144.45462, 1436.09985, 0.865515232, 0.00046618926, 0.500882328, 0.000966404332, 0.999996126, -0.00260066078, -0.500881612, 0.00273496634, 0.865511477),
+        radius = 100
+    },
+    {
+        name = "Chicleteiramania",
+        cframe = CFrame.new(-2594.31885, 113.666321, -1003.32324, 0.291291237, 0.00242274418, 0.956631362, 0.00117423898, 0.999995112, -0.00289011863, -0.956633747, 0.00196518027, 0.291286945),
+        radius = 100
+    },
+    {
+        name = "Nuclearo Core",
+        cframe = CFrame.new(-2168.58765, 292.660339, -3669.99658, 0.939700544, 0, 0.341998369, 0, 1, 0, -0.341998369, 0, 0.939700544),
+        radius = 100
+    },
+    {
+        name = "Udin Dinlympus",
+        cframe = CFrame.new(1306.25061, -39.1850586, -4343.77246, 0.258864343, -0, -0.965913713, 0, 1, -0, 0.965913713, 0, 0.258864343),
+        radius = 100
+    },
+    {
+        name = "Glorbo Heights",
+        cframe = CFrame.new(-3880.76367, 49.956192, 805.165527, 0.848536849, 0.274513543, -0.45235768, -0.137618437, 0.939970732, 0.312275857, 0.510926902, -0.202724844, 0.835377932),
+        radius = 100
+    },
+    {
+        name = "Brainrot Abyss",
+        cframe = CFrame.new(-1760.41309, 195.086166, 4981.12256, 0.508640289, -0, -0.86097914, 0, 1, -0, 0.86097914, 0, 0.508640289),
+        radius = 100
+    },
+    {
+        name = "Bombardino Sewer",
+        cframe = CFrame.new(-3575.76807, 197.602234, 2176.22119, -3.92198563e-05, -0.528098881, -0.849182844, -0.99999994, 3.93390656e-05, 2.18153e-05, 2.18153e-05, 0.849182844, -0.528098822),
+        radius = 100
+    }
+}
+
+-- Utility function to find monsters within a specified radius
+local function findMonstersInArea(center, radius, monsterNames)
+    local foundMonsters = {}
+    local monsterNameSet = {}
+    for _, name in ipairs(monsterNames) do
+        monsterNameSet[string.lower(name)] = true
+    end
+    
+    for _, child in ipairs(workspace:GetChildren()) do
+        local isFound = false
+        if child:IsA("Model") and monsterNameSet[string.lower(child.Name)] then
+            isFound = true
+        else
+            -- Check children of models as well, just in case
+            for _, subChild in ipairs(child:GetChildren()) do
+                if subChild:IsA("Model") and monsterNameSet[string.lower(subChild.Name)] then
+                    child = subChild -- Use the subChild as the main model
+                    isFound = true
+                    break
+                end
+            end
+        end
+
+        if isFound then
+            local humanoid = child:FindFirstChildOfClass("Humanoid")
+            local hrp = child:FindFirstChild("HumanoidRootPart")
+            
+            if humanoid and humanoid.Health > 0 and hrp and (hrp.Position - center).magnitude <= radius then
+                table.insert(foundMonsters, child)
+            end
+        end
+    end
+    return foundMonsters
+end
+
+-- Teleport function with added failsafe
+local function teleportTo(position)
+    local rayOrigin = position + Vector3.new(0, 10, 0) -- Start raycast from above the position
+    local rayDirection = Vector3.new(0, -100, 0) -- Raycast downwards
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = {Character}
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+
+    local raycastResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+
+    if raycastResult then
+        -- If we hit something, place the character just above it
+        HumanoidRootPart.CFrame = CFrame.new(raycastResult.Position + Vector3.new(0, 5, 0))
+    else
+        -- If we don't hit anything, place the character at the default position with a safety buffer
+        HumanoidRootPart.CFrame = CFrame.new(position + Vector3.new(0, 10, 0))
+    end
+end
+
+-- Attack function
+local function attackAtPosition(position)
+    RequestAttack:InvokeServer(CFrame.new(position))
+end
+
+-- Main farming loop
+while true do
+    for _, area in ipairs(farmAreas) do
+        print("Moving to " .. area.name)
+        
+        teleportTo(area.cframe.Position)
+        wait(2) -- Give time for the monsters to load
+
+        local monsters = findMonstersInArea(area.cframe.Position, area.radius, targetMonsters)
+
+        if #monsters > 0 then
+            print("Found " .. #monsters .. " monsters. Starting attack sequence.")
+            
+            -- Sort monsters by distance to the player to attack the nearest first
+            table.sort(monsters, function(a, b)
+                return (a:GetPrimaryPartCFrame().Position - HumanoidRootPart.Position).magnitude < (b:GetPrimaryPartCFrame().Position - HumanoidRootPart.Position).magnitude
+            end)
+            
+            -- Iterate through each monster found
+            for _, monster in ipairs(monsters) do
+                local humanoid = monster:FindFirstChildOfClass("Humanoid")
+                local hrp = monster:FindFirstChild("HumanoidRootPart")
+
+                -- Check if the monster is still valid before attacking
+                if humanoid and humanoid.Health > 0 and hrp and hrp.Parent then
+                    print("Attacking " .. monster.Name)
+                    teleportTo(hrp.Position)
+                    wait(0.5)
+
+                    local lastHealth = humanoid.Health
+                    local healthCheckTimer = 0
+                    local maxIdleTime = 3 -- Time in seconds before moving on
+
+                    -- Keep attacking until the monster is defeated or a timeout occurs
+                    while humanoid and humanoid.Health > 0 and hrp.Parent do
+                        attackAtPosition(hrp.Position)
+                        wait(1)
+
+                        if humanoid.Health == lastHealth then
+                            healthCheckTimer = healthCheckTimer + 1
+                        else
+                            lastHealth = humanoid.Health
+                            healthCheckTimer = 0
+                        end
+
+                        if healthCheckTimer >= maxIdleTime then
+                            print("Monster health not changing. Moving to the next monster.")
+                            break
+                        end
+                    end
+
+                    if not hrp.Parent or (humanoid and humanoid.Health <= 0) then
+                        print(monster.Name .. " defeated.")
+                    else
+                        print(monster.Name .. " disappeared or moved.")
+                    end
+                end
+                wait(1) -- Wait briefly before checking for the next monster
+            end
+        else
+            print("No monsters found in this area. Moving to the next area.")
+            wait(2)
+        end
+    end
+    print("Completed all areas. Restarting the cycle.")
+    wait(5)
+end
