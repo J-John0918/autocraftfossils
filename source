@@ -123,7 +123,7 @@ local function findHumanoidAtCFrame(cframe)
         if child:IsA("Model") and child:FindFirstChildOfClass("Humanoid") and child:FindFirstChild("HumanoidRootPart") then
             local humanoidRootPart = child.HumanoidRootPart
             local distance = (humanoidRootPart.Position - currentPosition).magnitude
-            if distance <= radius and distance < shortestDistance then
+            if distance <= radius and distance < shortestDistance and child.Name ~= LocalPlayer.Name then
                 closestHumanoid = child:FindFirstChildOfClass("Humanoid")
                 shortestDistance = distance
             end
@@ -165,36 +165,34 @@ while true do
             print("Priority Mode: Special monsters found. Actively hunting for 5 minutes.")
 
             while tick() - startTime < 300 do
-                for _, area in ipairs(safeCFrames) do
-                    teleportTo(area.cframe)
-                    wait(2)
+                local monsters = findPriorityMonsters()
+                if #monsters == 0 then
+                    print("No priority monsters found. Returning to Normal Mode.")
+                    break
+                end
+                
+                table.sort(monsters, function(a, b)
+                    return (a:GetPrimaryPartCFrame().Position - HumanoidRootPart.Position).magnitude < (b:GetPrimaryPartCFrame().Position - HumanoidRootPart.Position).magnitude
+                end)
+                
+                for _, monster in ipairs(monsters) do
+                    local humanoid = monster:FindFirstChildOfClass("Humanoid")
+                    local hrp = monster:FindFirstChild("HumanoidRootPart")
 
-                    local monsters = findPriorityMonsters()
-                    if #monsters > 0 then
-                        print("Found " .. #monsters .. " priority monsters in " .. area.name)
-                        
-                        table.sort(monsters, function(a, b)
-                            return (a:GetPrimaryPartCFrame().Position - HumanoidRootPart.Position).magnitude < (b:GetPrimaryPartCFrame().Position - HumanoidRootPart.Position).magnitude
-                        end)
-                        
-                        for _, monster in ipairs(monsters) do
-                            local humanoid = monster:FindFirstChildOfClass("Humanoid")
-                            local hrp = monster:FindFirstChild("HumanoidRootPart")
-
-                            if humanoid and humanoid.Health > 0 and hrp and hrp.Parent then
-                                print("Attacking " .. monster.Name)
-                                teleportTo(hrp.Position)
-                                wait(0.5)
-                                
-                                while humanoid and humanoid.Health > 0 and hrp.Parent do
-                                    attackAtPosition(hrp.Position)
-                                    wait(1)
-                                end
-                                print(monster.Name .. " defeated.")
-                            end
+                    if humanoid and humanoid.Health > 0 and hrp and hrp.Parent then
+                        print("Attacking " .. monster.Name)
+                        local attackStartTime = tick()
+                        while humanoid and humanoid.Health > 0 and hrp.Parent and (tick() - attackStartTime < 30) do
+                            teleportTo(hrp.Position)
+                            wait(0.5)
+                            attackAtPosition(hrp.Position)
+                            wait(1)
                         end
-                    else
-                        print("No priority monsters in " .. area.name .. ". Moving to next area.")
+                        if tick() - attackStartTime >= 30 then
+                            print("Timed out attacking " .. monster.Name)
+                        else
+                            print(monster.Name .. " defeated.")
+                        end
                     end
                 end
             end
@@ -202,27 +200,31 @@ while true do
         else
             print("Normal Mode: No special monsters found. Farming at each location in sequence.")
             for _, target in ipairs(targets) do
-                print("Teleporting to " .. target.name)
                 teleportTo(target.cframe)
-                wait(1)
-
-                local humanoidAtTarget = findHumanoidAtCFrame(target.cframe)
-                
-                if humanoidAtTarget then
-                    print("Found humanoid at " .. target.name .. ". Attacking.")
-                    while humanoidAtTarget and humanoidAtTarget.Health > 0 and humanoidAtTarget.Parent do
-                        attackAtPosition(target.cframe.Position)
-                        wait(1)
-                        humanoidAtTarget = findHumanoidAtCFrame(target.cframe)
-                    end
-                    print("Humanoid defeated or despawned. Moving to next target.")
-                else
-                    print("No humanoid found at " .. target.name .. ". Moving to next target.")
-                end
                 
                 if #findPriorityMonsters() > 0 or #findTravelingMonsters() > 0 then
                     print("Priority or traveling monster detected! Switching modes.")
                     break
+                end
+                
+                wait(1)
+                local humanoidAtTarget = findHumanoidAtCFrame(target.cframe)
+                
+                if humanoidAtTarget then
+                    print("Found humanoid at " .. target.name .. ". Attacking.")
+                    local hrpAtTarget = humanoidAtTarget.Parent:FindFirstChild("HumanoidRootPart")
+                    local attackStartTime = tick()
+                    while humanoidAtTarget and humanoidAtTarget.Health > 0 and hrpAtTarget and hrpAtTarget.Parent and (tick() - attackStartTime < 30) do
+                        attackAtPosition(hrpAtTarget.Position)
+                        wait(1)
+                    end
+                    if tick() - attackStartTime >= 30 then
+                        print("Timed out attacking " .. target.name .. ". Moving to next target.")
+                    else
+                        print("Humanoid defeated or despawned. Moving to next target.")
+                    end
+                else
+                    print("No humanoid found at " .. target.name .. ". Moving to next target.")
                 end
                 
                 wait(1)
