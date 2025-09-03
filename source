@@ -118,18 +118,34 @@ local function findHumanoidAtCFrame(cframe)
     local closestHumanoid = nil
     local shortestDistance = math.huge
     local currentPosition = cframe.Position
+    
+    local enemyNames = {
+        "Humanoid", "Enemy1", "Enemy2", "Monster" -- You may need to add more enemy names here
+    }
 
     for _, child in ipairs(workspace:GetChildren()) do
-        if child:IsA("Model") and child:FindFirstChildOfClass("Humanoid") and child:FindFirstChild("HumanoidRootPart") then
-            local humanoidRootPart = child.HumanoidRootPart
-            local distance = (humanoidRootPart.Position - currentPosition).magnitude
-            if distance <= radius and distance < shortestDistance and child.Name ~= LocalPlayer.Name then
-                closestHumanoid = child:FindFirstChildOfClass("Humanoid")
-                shortestDistance = distance
+        if child:IsA("Model") and child.Name ~= LocalPlayer.Name then
+            local humanoid = child:FindFirstChildOfClass("Humanoid")
+            local hrp = child:FindFirstChild("HumanoidRootPart")
+            if humanoid and humanoid.Health > 0 and hrp then
+                local isEnemy = false
+                for _, name in ipairs(enemyNames) do
+                    if string.find(child.Name, name) then
+                        isEnemy = true
+                        break
+                    end
+                end
+                
+                if isEnemy then
+                    local distance = (humanoidRootPart.Position - currentPosition).magnitude
+                    if distance <= radius and distance < shortestDistance then
+                        closestHumanoid = humanoid
+                        shortestDistance = distance
+                    end
+                end
             end
         end
     end
-
     return closestHumanoid
 end
 
